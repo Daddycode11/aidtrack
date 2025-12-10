@@ -1,0 +1,202 @@
+/* --- Admin Dashboard CSS (Extracted from dashboard.php) --- */
+
+/* Global Reset & Font */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+    font-family: 'Poppins', sans-serif; 
+    background: #f4f6fc; /* Very light background */
+    color: #333; 
+}
+a { text-decoration: none; }
+
+/* App Layout */
+.app { display: flex; min-height: 100vh; }
+
+/* Sidebar - Using colors from the MONITOR PANEL image */
+.sidebar {
+    width: 240px;
+    background-color: #FFA500; /* Orange color from the image */
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+.sidebar-logo {
+    font-size: 1.8rem;
+    text-align: center;
+    margin: 1.5rem 0;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #fff;
+}
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    padding: 0.9rem 1.5rem;
+    color: #333; /* Dark text for better contrast on orange */
+    border-radius: 6px;
+    margin: 0.3rem 1rem;
+    transition: 0.2s;
+    background-color: #FFC04C; /* Lighter orange for normal state */
+    font-weight: 500;
+}
+.sidebar-nav a.active,
+.sidebar-nav a:hover { 
+    background-color: #fff; /* White background on active/hover */
+    color: #FFA500; /* Orange text on active/hover */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Main content */
+.main { flex: 1; display: flex; flex-direction: column; }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 2rem;
+    background-color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.header h1 { font-size: 1.5rem; font-weight: 600; }
+.btn-logout {
+    background-color: #DC3545; /* Red color for logout */
+    color: #fff;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: 0.2s;
+}
+.btn-logout:hover { background-color: #c82333; }
+
+/* Main Content Area */
+.content { padding: 1.5rem 2rem; }
+
+/* Stats grid (not used on this page, but good to keep) */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.card {
+    background: #fff;
+    padding: 1.2rem 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+}
+.stat-card {
+    border-left: 5px solid #007BFF;
+}
+.stat-card .card-title { 
+    font-size: 0.9rem; 
+    font-weight: 500; 
+    text-transform: uppercase; 
+    color: #555; 
+}
+.stat-card .card-value { 
+    font-size: 2.2rem; 
+    font-weight: 700; 
+    margin-top: 0.3rem;
+    color: #007BFF;
+}
+
+/* Section cards */
+.data-section-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 1.5rem;
+}
+.section-card { height: 100%; } 
+.section-card .card-title { 
+    font-weight: 600; 
+    font-size: 1.2rem; 
+    margin-bottom: 1rem; 
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+.card-body { max-height: 400px; overflow-y: auto; }
+
+/* Messages (not used on this page, but good to keep) */
+.message-item { border-bottom: 1px solid #eee; padding: 0.8rem 0; }
+.message-item:last-child { border-bottom: none; }
+.msg-sender { font-weight: 600; color: #4F46E5; }
+.msg-text { margin: 0.3rem 0; line-height: 1.4; }
+.msg-time { font-size: 0.75rem; color: #999; }
+
+/* Beneficiary Table */
+.data-table-container { overflow-x: auto; }
+.data-table-container table { width: 100%; border-collapse: collapse; min-width: 900px; } /* Increased min-width for all columns */
+.data-table-container th, .data-table-container td { padding: 0.9rem 1rem; border-bottom: 1px solid #eee; text-align: left; font-size: 0.9rem; }
+.data-table-container th { background: #f8f8f8; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: #666; }
+.data-table-container tr:hover { background: #f0f8ff; }
+
+/* Filter/Search Form Styles */
+.filter-form {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+.filter-form label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 0.3rem;
+}
+.filter-form input[type="text"],
+.filter-form select {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    width: 100%;
+    min-width: 150px;
+}
+.btn-search {
+    background-color: #007BFF;
+    color: #fff;
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.btn-search:hover {
+    background-color: #0056b3;
+}
+
+/* Status color coding */
+td.status-pending { color: #FFA500; font-weight: 600; } /* Orange */
+td.status-approved { color: #28A745; font-weight: 600; } /* Green */
+td.status-rejected { color: #DC3545; font-weight: 600; } /* Red */
+
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .data-section-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .filter-form { justify-content: space-between; }
+    .filter-group { flex-grow: 1; min-width: 45%; }
+}
+@media (max-width: 768px) {
+    .sidebar { width: 100%; height: auto; min-height: unset; border-right: none; }
+    .app { flex-direction: column; }
+    .sidebar-nav { display: flex; flex-wrap: wrap; justify-content: space-around; margin: 0 0 1rem 0; }
+    .sidebar-nav a { margin: 0.2rem; padding: 0.5rem 1rem; flex-grow: 1; justify-content: center;}
+    .sidebar-logo { display: none; }
+    .content { padding: 1rem; }
+    .filter-group { min-width: 100%; }
+    .btn-search { width: 100%; }
+}
