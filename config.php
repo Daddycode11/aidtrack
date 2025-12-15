@@ -2,7 +2,7 @@
 define('DB_HOST','localhost');
 define('DB_USER','root');
 define('DB_PASS',''); // set your MySQL password
-define('DB_NAME','aidtrack');
+define('DB_NAME','aidtrack_db');
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 
 // First connect WITHOUT DB_NAME

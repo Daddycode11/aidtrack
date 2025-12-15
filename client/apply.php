@@ -1,4 +1,4 @@
-<?php
+<?php 
 // client/apply.php
 require_once __DIR__ . '/../helpers.php';
 require_client(); // ensure logged-in client
@@ -30,7 +30,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('isds', $user_id, $type, $clean_amount, $notes);
 
         if ($stmt->execute()) {
-            $message = "<p style='color:green;'>Application submitted successfully! It is now pending review.</p>";
+            $application_id = $stmt->insert_id; // get inserted application ID
+
+            // --- Document Upload Handling ---
+            $required_docs = ['valid_id', 'birth_certificate', 'barangay_clearance'];
+            $optional_docs = ['other_doc'];
+            $all_docs = array_merge($required_docs, $optional_docs);
+
+            $allowed_types = ['image/jpeg','image/png','application/pdf'];
+            $max_size = 5 * 1024 * 1024; // 5MB
+            $upload_dir = __DIR__ . '/../uploads/';
+
+            foreach ($all_docs as $doc) {
+                if (!empty($_FILES[$doc]['name'])) {
+                    $file = $_FILES[$doc];
+                    if ($file['error'] === UPLOAD_ERR_OK && in_array($file['type'], $allowed_types) && $file['size'] <= $max_size) {
+                        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                        $safe_name = $doc . '_' . time() . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
+                        if (move_uploaded_file($file['tmp_name'], $upload_dir . $safe_name)) {
+                            $stmt_file = $mysqli->prepare("
+                                INSERT INTO application_documents (application_id, document_type, filename, uploaded_at)
+                                VALUES (?, ?, ?, NOW())
+                            ");
+                            $stmt_file->bind_param('iss', $application_id, $doc, $safe_name);
+                            $stmt_file->execute();
+                            $stmt_file->close();
+                        } else {
+                            $errors[] = "Failed to save uploaded file: $doc";
+                        }
+                    } else {
+                        $errors[] = "Invalid file for $doc (type/size)";
+                    }
+                } elseif (in_array($doc, $required_docs)) {
+                    $errors[] = ucfirst(str_replace('_',' ',$doc)) . ' is required.';
+                }
+            }
+            // --- End Document Upload Handling ---
+
+            if (!$errors) {
+                $message = "<p style='color:green;'>Application submitted successfully! It is now pending review.</p>";
+            }
         } else {
             $errors[] = "Failed to submit application: " . $mysqli->error;
         }
@@ -60,6 +99,7 @@ $stmt2->close();
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <style>
+/* --- Existing Styles --- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Poppins', sans-serif; background: #f4f6fc; color: #333; }
 a { text-decoration: none; }
@@ -112,7 +152,6 @@ a { text-decoration: none; }
 </head>
 <body>
 <div class="app">
-    <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-logo">AidTrack</div>
         <nav class="sidebar-nav">
@@ -135,7 +174,7 @@ a { text-decoration: none; }
                 <div class="card-title">Submit a New Request for Assistance</div>
                 <?php foreach($errors as $e) echo "<p style='color:red;'>$e</p>"; ?>
                 <?= $message ?>
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data">
                     <div class="form-group">
                         <label for="type">Assistance Type</label>
                         <select id="type" name="type" required>
@@ -152,6 +191,24 @@ a { text-decoration: none; }
                         <label for="notes">Notes / Justification (optional)</label>
                         <textarea id="notes" name="notes" rows="4"></textarea>
                     </div>
+
+                    <!-- Labeled Document Uploads -->
+                    <div class="form-group">
+                        <label>Upload Documents (JPG, PNG, PDF | Max 5MB each)</label>
+                        
+                        <label for="valid_id">Valid ID</label>
+                        <input type="file" id="valid_id" name="valid_id" required>
+                        
+                        <label for="birth_certificate">Birth Certificate</label>
+                        <input type="file" id="birth_certificate" name="birth_certificate" required>
+                        
+                        <label for="barangay_clearance">Barangay Clearance</label>
+                        <input type="file" id="barangay_clearance" name="barangay_clearance" required>
+                        
+                        <label for="other_doc">Other Document (optional)</label>
+                        <input type="file" id="other_doc" name="other_doc">
+                    </div>
+
                     <button type="submit" class="btn-submit">Submit Request</button>
                 </form>
             </div>

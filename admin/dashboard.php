@@ -7,7 +7,6 @@ require_admin(); // ensure admin or super_admin
 $total_users = get_count('users');
 $total_applications = get_count('applications');
 
-// Approved, Pending, and Rejected aids counts
 $approved_aids = $mysqli->query("SELECT COUNT(*) FROM applications WHERE status='approved'")->fetch_row()[0];
 $pending_aids  = $mysqli->query("SELECT COUNT(*) FROM applications WHERE status='pending'")->fetch_row()[0];
 $rejected_aids = $mysqli->query("SELECT COUNT(*) FROM applications WHERE status='rejected'")->fetch_row()[0];
@@ -37,7 +36,8 @@ $stmt = $mysqli->prepare("
         u.barangay,
         a.status,
         a.type AS assistance,
-        a.date_of_request AS date_request
+        a.date_of_request AS date_request,
+        a.id AS application_id
     FROM applications a
     JOIN users u ON a.user_id = u.id
     ORDER BY a.created_at DESC
@@ -49,10 +49,24 @@ if ($stmt) {
     $stmt->close();
 }
 
+// --- Uploaded Documents ---
+$documents = [];
+$stmt = $mysqli->prepare("
+    SELECT ad.id, ad.document_type, ad.filename, a.id AS application_id, u.name AS applicant, a.status
+    FROM application_documents ad
+    JOIN applications a ON ad.application_id = a.id
+    JOIN users u ON a.user_id = u.id
+    ORDER BY ad.uploaded_at DESC
+");
+if($stmt){
+    $stmt->execute();
+    $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+}
+
 // Chart data
 $chart_labels = json_encode(['Approved', 'Rejected', 'Pending']);
 $chart_data = json_encode([$approved_aids, $rejected_aids, $pending_aids]);
-
 $application_types = json_encode(array_column($applications_by_type, 'type'));
 $applications_count = json_encode(array_column($applications_by_type, 'count'));
 ?>
@@ -64,44 +78,43 @@ $applications_count = json_encode(array_column($applications_by_type, 'count'));
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; margin:0; padding:0; }
-body { font-family:'Poppins',sans-serif; background:#f4f6fc; color:#333; }
-a { text-decoration:none; }
-.app { display:flex; min-height:100vh; }
-.sidebar { width:240px; background:#FFA500; color:#fff; display:flex; flex-direction:column; min-height:100vh; box-shadow:2px 0 5px rgba(0,0,0,0.1); }
-.sidebar-logo { font-size:1.8rem; text-align:center; margin:1.5rem 0; font-weight:700; letter-spacing:1px; color:#fff; }
-.sidebar-nav a { display:flex; align-items:center; padding:0.9rem 1.5rem; color:#333; border-radius:6px; margin:0.3rem 1rem; transition:0.2s; background:#FFC04C; font-weight:500; }
-.sidebar-nav a.active, .sidebar-nav a:hover { background:#fff; color:#FFA500; box-shadow:0 2px 5px rgba(0,0,0,0.2); }
-.main { flex:1; display:flex; flex-direction:column; }
-.header { display:flex; justify-content:space-between; align-items:center; padding:1.2rem 2rem; background:#fff; border-bottom:1px solid #e0e0e0; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
-.header h1 { font-size:1.5rem; font-weight:600; }
-.btn-logout { background:#DC3545; color:#fff; padding:0.5rem 1.2rem; border-radius:6px; font-weight:500; transition:0.2s; }
-.btn-logout:hover { background:#c82333; }
-.content { padding:1.5rem 2rem; }
-.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1.5rem; margin-bottom:1.5rem; }
-.card { background:#fff; padding:1.2rem 1.5rem; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
-.stat-card { border-left:5px solid #007BFF; }
-.stat-card .card-title { font-size:0.9rem; font-weight:500; text-transform:uppercase; color:#555; }
-.stat-card .card-value { font-size:2.2rem; font-weight:700; margin-top:0.3rem; color:#007BFF; }
-.data-section-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(400px,1fr)); gap:1.5rem; }
-.section-card { height:100%; }
-.section-card .card-title { font-weight:600; font-size:1.2rem; margin-bottom:1rem; border-bottom:1px solid #eee; padding-bottom:0.5rem; }
-.card-body { max-height:400px; overflow-y:auto; }
-.message-item { border-bottom:1px solid #eee; padding:0.8rem 0; }
-.message-item:last-child { border-bottom:none; }
-.msg-sender { font-weight:600; color:#4F46E5; }
-.msg-text { margin:0.3rem 0; line-height:1.4; }
-.msg-time { font-size:0.75rem; color:#999; }
-.data-table-container { overflow-x:auto; }
-.data-table-container table { width:100%; border-collapse:collapse; min-width:650px; }
-.data-table-container th, .data-table-container td { padding:0.9rem 1rem; border-bottom:1px solid #eee; text-align:left; font-size:0.9rem; }
-.data-table-container th { background:#f8f8f8; font-weight:600; font-size:0.8rem; text-transform:uppercase; color:#666; }
-.data-table-container tr:hover { background:#f0f8ff; }
-td.status-pending { color:#FFA500; font-weight:600; }
-td.status-approved { color:#28A745; font-weight:600; }
-td.status-rejected { color:#DC3545; font-weight:600; }
-@media(max-width:1024px) { .data-section-grid { grid-template-columns:1fr; } .stats-grid { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); } }
-@media(max-width:768px) { .sidebar { width:100%; height:auto; min-height:unset; border-right:none; } .app { flex-direction:column; } .sidebar-nav { display:flex; flex-wrap:wrap; justify-content:space-around; margin:0 0 1rem 0; } .sidebar-nav a { margin:0.2rem; padding:0.5rem 1rem; flex-grow:1; justify-content:center;} .sidebar-logo { display:none; } .content { padding:1rem; } }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Poppins',sans-serif;background:#f4f6fc;color:#333;}
+a{text-decoration:none;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:#FFA500;color:#fff;display:flex;flex-direction:column;min-height:100vh;box-shadow:2px 0 5px rgba(0,0,0,0.1);}
+.sidebar-logo{font-size:1.8rem;text-align:center;margin:1.5rem 0;font-weight:700;letter-spacing:1px;color:#fff;}
+.sidebar-nav a{display:flex;align-items:center;padding:0.9rem 1.5rem;color:#333;border-radius:6px;margin:0.3rem 1rem;transition:0.2s;background:#FFC04C;font-weight:500;}
+.sidebar-nav a.active, .sidebar-nav a:hover{background:#fff;color:#FFA500;box-shadow:0 2px 5px rgba(0,0,0,0.2);}
+.main{flex:1;display:flex;flex-direction:column;}
+.header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 2rem;background:#fff;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.header h1{font-size:1.5rem;font-weight:600;}
+.btn-logout{background:#DC3545;color:#fff;padding:0.5rem 1.2rem;border-radius:6px;font-weight:500;transition:0.2s;}
+.btn-logout:hover{background:#c82333;}
+.content{padding:1.5rem 2rem;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-bottom:1.5rem;}
+.card{background:#fff;padding:1.2rem 1.5rem;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+.stat-card{border-left:5px solid #007BFF;}
+.stat-card .card-title{font-size:0.9rem;font-weight:500;text-transform:uppercase;color:#555;}
+.stat-card .card-value{font-size:2.2rem;font-weight:700;margin-top:0.3rem;color:#007BFF;}
+.data-section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:1.5rem;}
+.section-card .card-title{font-weight:600;font-size:1.2rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;}
+.card-body{max-height:400px;overflow-y:auto;}
+.message-item{border-bottom:1px solid #eee;padding:0.8rem 0;}
+.message-item:last-child{border-bottom:none;}
+.msg-sender{font-weight:600;color:#4F46E5;}
+.msg-text{margin:0.3rem 0;line-height:1.4;}
+.msg-time{font-size:0.75rem;color:#999;}
+.data-table-container{overflow-x:auto;}
+.data-table-container table{width:100%;border-collapse:collapse;min-width:650px;}
+.data-table-container th,.data-table-container td{padding:0.9rem 1rem;border-bottom:1px solid #eee;text-align:left;font-size:0.9rem;}
+.data-table-container th{background:#f8f8f8;font-weight:600;font-size:0.8rem;text-transform:uppercase;color:#666;}
+.data-table-container tr:hover{background:#f0f8ff;}
+td.status-pending{color:#FFA500;font-weight:600;}
+td.status-approved{color:#28A745;font-weight:600;}
+td.status-rejected{color:#DC3545;font-weight:600;}
+@media(max-width:1024px){.data-section-grid{grid-template-columns:1fr;}.stats-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}}
+@media(max-width:768px){.sidebar{width:100%;height:auto;min-height:unset;border-right:none;}.app{flex-direction:column;}.sidebar-nav{display:flex;flex-wrap:wrap;justify-content:space-around;margin:0 0 1rem 0;}.sidebar-nav a{margin:0.2rem;padding:0.5rem 1rem;flex-grow:1;justify-content:center;}.sidebar-logo{display:none;}.content{padding:1rem;}}
 </style>
 </head>
 <body>
@@ -117,13 +130,11 @@ td.status-rejected { color:#DC3545; font-weight:600; }
             <a href="beneficiaries.php">Beneficiaries</a>
         </nav>
     </aside>
-
     <div class="main">
         <header class="header">
             <h1>Welcome, <?= htmlspecialchars($_SESSION['user']['name'] ?? 'Admin') ?></h1>
             <a class="btn-logout" href="../logout.php">Logout</a>
         </header>
-
         <main class="content">
             <!-- Stats -->
             <div class="stats-grid">
@@ -145,7 +156,7 @@ td.status-rejected { color:#DC3545; font-weight:600; }
                 </div>
             </div>
 
-            <!-- Data Section with Charts -->
+            <!-- Data Section -->
             <div class="data-section-grid">
                 <!-- Recent Messages -->
                 <div class="card section-card">
@@ -179,6 +190,7 @@ td.status-rejected { color:#DC3545; font-weight:600; }
                                             <th>Status</th>
                                             <th>Assistance</th>
                                             <th>Date of Request</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -189,11 +201,54 @@ td.status-rejected { color:#DC3545; font-weight:600; }
                                                 <td class="status-<?= strtolower($aid['status']) ?>"><?= htmlspecialchars(strtoupper($aid['status'])) ?></td>
                                                 <td><?= htmlspecialchars(strtoupper($aid['assistance'])) ?></td>
                                                 <td><?= htmlspecialchars($aid['date_request']) ?></td>
+                                                <td>
+                                                    <a href="approve_reject.php?id=<?= $aid['application_id'] ?>&action=approve">Approve</a> |
+                                                    <a href="approve_reject.php?id=<?= $aid['application_id'] ?>&action=reject" onclick="return confirm('Reject this application?');">Reject</a>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
                             </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Uploaded Documents -->
+                <div class="card section-card">
+                    <div class="card-title">Uploaded Documents</div>
+                    <div class="card-body">
+                        <?php if(empty($documents)): ?>
+                            <p>No documents uploaded yet.</p>
+                        <?php else: ?>
+                        <div class="data-table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Applicant</th>
+                                        <th>Application ID</th>
+                                        <th>Document Type</th>
+                                        <th>File</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach($documents as $doc): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($doc['applicant']) ?></td>
+                                            <td><?= $doc['application_id'] ?></td>
+                                            <td><?= str_replace('_',' ',ucfirst($doc['document_type'])) ?></td>
+                                            <td><a href="../uploads/<?= urlencode($doc['filename']) ?>" target="_blank">View</a></td>
+                                            <td class="status-<?= strtolower($doc['status']) ?>"><?= strtoupper($doc['status']) ?></td>
+                                            <td>
+                                                <a href="delete_document.php?id=<?= $doc['id'] ?>" onclick="return confirm('Delete this document?');">Delete</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -213,7 +268,6 @@ td.status-rejected { color:#DC3545; font-weight:600; }
                         <canvas id="applicationsTypeChart" style="width:100%;height:250px;"></canvas>
                     </div>
                 </div>
-
             </div>
         </main>
     </div>
@@ -240,7 +294,7 @@ const applicationsChart = new Chart(document.getElementById('applicationsChart')
 });
 
 const applicationsTypeChart = new Chart(document.getElementById('applicationsTypeChart'), {
-    type: 'doughnut', // or 'bar' for bar chart
+    type: 'doughnut',
     data: {
         labels: <?= $application_types ?>,
         datasets: [{

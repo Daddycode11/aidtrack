@@ -146,7 +146,7 @@
 
             <p data-aos="fade-up" data-aos-delay="200"
                 class="mt-4 text-lg text-gray-200 max-w-2xl mx-auto">
-                AIDTRACK helps Congressman Tarriela’s office manage, track, and streamline financial assistance requests efficiently.
+                AIDTRACK helps Congressman office manage, track, and streamline financial assistance requests efficiently.
             </p>
 
             <a href="login.php"

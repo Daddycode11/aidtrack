@@ -1,5 +1,9 @@
 <?php
-require_once 'config.php';
+require_once 'helpers.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $errors = [];
 
@@ -10,34 +14,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$phone || !$password) {
         $errors[] = 'Phone and password are required.';
     } else {
+        $mysqli->select_db(DB_NAME);
+
         $stmt = $mysqli->prepare("SELECT id, phone, name, password_hash, role FROM users WHERE phone = ? LIMIT 1");
-        $stmt->bind_param('s', $phone);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        $user = $res->fetch_assoc();
-        $stmt->close();
+        if ($stmt) {
+            $stmt->bind_param('s', $phone);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $u = $res->fetch_assoc();
+            $stmt->close();
 
-        if (!$user || !password_verify($password, $user['password_hash'])) {
-            $errors[] = 'Invalid phone or password.';
-        } else {
-            unset($user['password_hash']);
-            $_SESSION['user'] = $user;
+            if (!$u || !password_verify($password, $u['password_hash'])) {
+                $errors[] = 'Invalid phone or password.';
+            } else {
+                unset($u['password_hash']);
+                $_SESSION['user'] = $u;
 
-            switch ($user['role']) {
-                case 'super_admin':
-                case 'admin':
-                    header('Location: admin/dashboard.php');
-                    exit;
-                case 'client':
-                default:
-                    header('Location: client/dashboard.php');
-                    exit;
+                switch ($u['role']) {
+                    case 'super_admin':
+                    case 'admin':
+                        header('Location: admin/dashboard.php');
+                        exit;
+                    case 'client':
+                    default:
+                        header('Location: client/dashboard.php');
+                        exit;
+                }
             }
+        } else {
+            $errors[] = 'Database query failed: ' . $mysqli->error;
         }
     }
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
